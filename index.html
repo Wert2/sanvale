@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>San Valentín Eterno</title>
+    <link href="https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&display=swap" rel="stylesheet">
+    <style>
+        body { margin: 0; overflow: hidden; background: radial-gradient(circle, #25000a 0%, #000000 100%); font-family: 'Dancing Script', cursive; touch-action: none; }
+        #ui { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; z-index: 100; }
+        
+        #hint { 
+            color: #ff0055; font-size: 2.2rem; text-shadow: 0 0 20px #ff0040, 0 0 40px #ff1493; 
+            animation: pulse 1.5s infinite; pointer-events: auto; cursor: pointer; text-align: center;
+        }
+
+        #final-card { 
+            background: rgba(10, 0, 5, 0.92); 
+            padding: 25px; border-radius: 40px; border: 3px double #ff1493;
+            display: none; box-shadow: 0 0 50px rgba(255, 20, 147, 0.7);
+            width: 85%; max-width: 320px; height: 60vh;
+            backdrop-filter: blur(20px); text-align: center; pointer-events: auto;
+        }
+
+        #writer { 
+            font-size: 1.4rem; line-height: 1.5; color: #fff; 
+            text-shadow: 0 0 10px #ff1493, 0 0 20px #ff1493;
+            margin-top: 10px; overflow-y: auto; max-height: 80%;
+        }
+
+        h1 { color: #ff69b4; font-size: 2.8rem; margin: 0; text-shadow: 0 0 20px #ff1493; }
+
+        @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+    </style>
+</head>
+<body>
+
+    <div id="ui">
+        <div id="hint">✨ TOCA PARA LA MAGIA ✨</div>
+        <div id="final-card">
+            <h1>Para Ti...</h1>
+            <p id="writer"></p>
+        </div>
+    </div>
+
+    <audio id="musica" loop preload="auto"><source src="assets/musica.mp3" type="audio/mpeg"></audio>
+
+    <script type="importmap">
+        { "imports": { "three": "https://unpkg.com/three@0.160.0/build/three.module.js", "gsap": "https://cdn.skypack.dev/gsap" } }
+    </script>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { gsap } from 'gsap';
+
+        let scene, camera, renderer, heart, stars, kitties = [], heartRain = [];
+        const loader = new THREE.TextureLoader();
+
+        init();
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 1000);
+            camera.position.z = 25;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+            document.body.appendChild(renderer.domElement);
+
+            createGlowHeart();
+            createDecorations();
+            setupLights();
+
+            window.addEventListener('pointerdown', startMagic, { once: true });
+            animate();
+        }
+
+        function getHeartShape() {
+            const shape = new THREE.Shape();
+            const x = -0.25, y = -0.5;
+            shape.moveTo(x + 0.25, y + 0.25);
+            shape.bezierCurveTo(x + 0.25, y + 0.25, x + 0.2, y, x, y);
+            shape.bezierCurveTo(x - 0.3, y, x - 0.3, y + 0.35, x - 0.3, y + 0.35);
+            shape.bezierCurveTo(x - 0.3, y + 0.55, x - 0.15, y + 0.77, x + 0.25, y + 0.95);
+            shape.bezierCurveTo(x + 0.6, y + 0.77, x + 0.8, y + 0.55, x + 0.8, y + 0.35);
+            shape.bezierCurveTo(x + 0.8, y + 0.35, x + 0.8, y, x + 0.5, y);
+            shape.bezierCurveTo(x + 0.35, y, x + 0.25, y + 0.25, x + 0.25, y + 0.25);
+            return shape;
+        }
+
+        function createGlowHeart() {
+            const geo = new THREE.ExtrudeGeometry(getHeartShape(), { depth: 0.8, bevelEnabled: true, bevelSize: 0.2 });
+            const mat = new THREE.MeshPhongMaterial({ color: 0xff0040, emissive: 0xff1493, emissiveIntensity: 0.8, shininess: 200 });
+            heart = new THREE.Mesh(geo, mat);
+            heart.rotation.z = Math.PI;
+            heart.scale.set(9, 9, 9);
+            scene.add(heart);
+        }
+
+        function createKittyPro() {
+            const group = new THREE.Group();
+            const whiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const head = new THREE.Mesh(new THREE.SphereGeometry(1, 32, 32), whiteMat);
+            head.scale.set(1.3, 0.95, 0.9);
+            group.add(head);
+
+            const earGeo = new THREE.ConeGeometry(0.35, 0.7, 32);
+            const earL = new THREE.Mesh(earGeo, whiteMat);
+            earL.position.set(-0.7, 0.8, 0); earL.rotation.z = 0.3;
+            const earR = earL.clone(); earR.position.set(0.7, 0.8, 0); earR.rotation.z = -0.3;
+            group.add(earL, earR);
+
+            const eyeMat = new THREE.MeshBasicMaterial({ color: 0x000000 });
+            const eyeL = new THREE.Mesh(new THREE.SphereGeometry(0.12, 16, 16), eyeMat);
+            eyeL.position.set(-0.45, 0.1, 0.85); eyeL.scale.y = 1.3;
+            const eyeR = eyeL.clone(); eyeR.position.set(0.45, 0.1, 0.85);
+            const nose = new THREE.Mesh(new THREE.SphereGeometry(0.08, 16, 16), new THREE.MeshBasicMaterial({ color: 0xffff00 }));
+            nose.position.set(0, -0.1, 0.9);
+            group.add(eyeL, eyeR, nose);
+
+            const hGeo = new THREE.ShapeGeometry(getHeartShape());
+            const ribbon = new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color: 0xff0040 }));
+            ribbon.position.set(0.7, 0.7, 0.7);
+            ribbon.rotation.z = Math.PI;
+            ribbon.scale.set(0.4, 0.4, 0.4);
+            group.add(ribbon);
+            return group;
+        }
+
+        function createDecorations() {
+            const starGeo = new THREE.BufferGeometry();
+            const starPos = [];
+            for(let i=0; i<1200; i++) starPos.push((Math.random()-0.5)*160, (Math.random()-0.5)*160, (Math.random()-0.5)*160);
+            starGeo.setAttribute('position', new THREE.Float32BufferAttribute(starPos, 3));
+            stars = new THREE.Points(starGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 0.12 }));
+            scene.add(stars);
+
+            const hGeo = new THREE.ShapeGeometry(getHeartShape());
+            for(let i=0; i<70; i++) {
+                const m = new THREE.Mesh(hGeo, new THREE.MeshBasicMaterial({ color: 0xff1493, transparent: true, opacity: 0.6, side: THREE.DoubleSide }));
+                m.position.set((Math.random()-0.5)*100, (Math.random()-0.5)*100, (Math.random()-0.5)*50);
+                m.rotation.z = Math.PI;
+                scene.add(m);
+                heartRain.push(m);
+            }
+        }
+
+        function setupLights() {
+            scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+            const p = new THREE.PointLight(0xff1493, 150); p.position.set(0, 10, 20);
+            scene.add(p);
+        }
+
+        async function startMagic() {
+            const audio = document.getElementById('musica');
+            audio.play().catch(() => {});
+            document.getElementById('hint').style.display = 'none';
+
+            // EXPLOSION ORIGINAL
+            gsap.to(heart.scale, { x: 55, y: 55, z: 55, duration: 0.8, ease: "power4.in" });
+            gsap.to(heart.material, { opacity: 0, transparent: true, duration: 0.8, onComplete: () => {
+                scene.remove(heart);
+                for(let i=0; i<350; i++) {
+                    const p = new THREE.Mesh(new THREE.SphereGeometry(0.15), new THREE.MeshBasicMaterial({color:0xff1493}));
+                    scene.add(p);
+                    gsap.to(p.position, { 
+                        x:(Math.random()-0.5)*90, y:(Math.random()-0.5)*90, z:(Math.random()-0.5)*90, 
+                        duration:3, ease:"power2.out", onComplete: ()=>scene.remove(p)
+                    });
+                }
+            }});
+
+            await new Promise(r => setTimeout(r, 1000));
+
+            for(let i=0; i<6; i++) {
+                const k = createKittyPro();
+                k.position.set((i - 2.5) * 11, -11, -18);
+                k.scale.set(3.8, 3.8, 3.8);
+                scene.add(k);
+                kitties.push(k);
+            }
+
+            const coords = [[-10, 15], [10, 15], [-14, 0], [14, 0], [-10, -15], [10, -15]];
+            for(let i=0; i<6; i++) {
+                // Arreglo móvil: se lanza la foto y se espera el tiempo justo para que se vea antes de la siguiente
+                dropPhoto(i+1, coords[i][0], coords[i][1]);
+                await new Promise(r => setTimeout(r, 6500)); 
+            }
+            showFinalCard();
+        }
+
+        function dropPhoto(id, tx, ty) {
+            loader.load(`assets/img${id}.png`, (tex) => {
+                const photo = new THREE.Mesh(
+                    new THREE.PlaneGeometry(12, 12),
+                    new THREE.MeshBasicMaterial({ map: tex, transparent: true, opacity: 0 })
+                );
+                // Ajuste móvil: Aparece al frente (z: 12) para que se vea inmediatamente
+                photo.position.set(0, 0, 12);
+                scene.add(photo);
+                const tl = gsap.timeline();
+                tl.to(photo.material, { opacity: 1, duration: 1 })
+                  .to({}, { duration: 5 }) // Los 5 segundos que pediste
+                  .to(photo.position, { x: tx, y: ty, z: -4, duration: 2.5, ease: "expo.inOut" })
+                  .to(photo.scale, { x: 0.45, y: 0.45, duration: 2.5 }, "-=2.5");
+            });
+        }
+
+        function showFinalCard() {
+            const card = document.getElementById('final-card');
+            card.style.display = 'block';
+            gsap.from(card, { opacity: 0, y: 120, duration: 2 });
+            const msg = `Hoy no es un día de etiquetas, sino de sentimientos reales. Gracias por haber sido parte de mi historia y por seguir estando presente hoy... ¡Feliz San Valentín!`;
+            let i = 0;
+            const type = () => {
+                if(i < msg.length) {
+                    document.getElementById('writer').innerHTML += msg.charAt(i);
+                    i++; setTimeout(type, 50);
+                    card.scrollTop = card.scrollHeight;
+                }
+            };
+            type();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            if(heart) heart.rotation.y += 0.025; 
+            stars.rotation.y += 0.0004;
+            kitties.forEach(k => k.rotation.y += 0.025);
+            heartRain.forEach(h => {
+                h.position.y += 0.04;
+                if(h.position.y > 45) h.position.y = -45;
+            });
+            renderer.render(scene, camera);
+        }
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth/window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
